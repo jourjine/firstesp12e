@@ -6,31 +6,11 @@
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <ArduinoOTA.h>
 #include <PubSubClient.h>
-//#include <MD_MAX72xx.h>
 #include <SPI.h>
-
-#include <LedControl.h>
-//#include "brzo_i2c\brzo_i2c.h"
-//#include <Wire.h>
-//#include <BH1750.h>
-
-
-/*
- Now we need a LedControl to work with.
- ***** These pin numbers will probably not work with your hardware *****
- pin 12 is connected to the DataIn
- pin 11 is connected to the CLK
- pin 10 is connected to LOAD
- We have only a single MAX72XX.
- */
- LedControl lc=LedControl(14,13,12,1);
-
-  unsigned long delaytime=250;
-
 
   WiFiManager wifiManager;
 
-  IPAddress server(192, 168, 1, 131);
+  IPAddress server(192, 168, 1, 131);   // меняем на свой IP
 
   void callback(char* topic, byte* payload, unsigned int length) {
     // handle message arrived
@@ -76,7 +56,7 @@ char *dtostrf(double val, signed char width, unsigned char prec, char *s);
 void setup() {
   Serial.begin(115200);
 
-  wifiManager.autoConnect("ESP-wifi", "GjxnjdsQ");
+  wifiManager.autoConnect("ESP-wifi", "1234wifi");
 
   ArduinoOTA.onStart([]() {
       Serial.println("Start");
@@ -102,106 +82,14 @@ void setup() {
     client.publish("outTopic","hello world");
     client.subscribe("inTopic");
    }
-
-
-
-   /*
-   The MAX72XX is in power-saving mode on startup,
-   we have to do a wakeup call
-   */
-  lc.shutdown(0,false);
-  /* Set the brightness to a medium values */
-  lc.setIntensity(0,8);
-  /* and clear the display */
-  lc.clearDisplay(0);
-
-
 }
 
 
-/*
- This method will display the characters for the
- word "Arduino" one after the other on digit 0.
- */
-void writeArduinoOn7Segment() {
-  lc.setChar(0,0,'a',false);
-  delay(delaytime);
-  lc.setRow(0,0,0x05);
-  delay(delaytime);
-  lc.setChar(0,0,'d',false);
-  delay(delaytime);
-  lc.setRow(0,0,0x1c);
-  delay(delaytime);
-  lc.setRow(0,0,B00010000);
-  delay(delaytime);
-  lc.setRow(0,0,0x15);
-  delay(delaytime);
-  lc.setRow(0,0,0x1D);
-  delay(delaytime);
-  lc.clearDisplay(0);
-  delay(delaytime);
-}
 
-void printNumber(int v) {
-    int ones;
-    int tens;
-    int hundreds;
-
-    boolean negative=false;
-
-    if(v < -9999 || v > 9999)
-        return;
-    if(v<0) {
-        negative=true;
-        v=v*-1;
-    }
-    ones=v%10;
-    v=v/10;
-    tens=v%10;
-    v=v/10; hundreds=v;
-    if(negative) {
-        //print character '-' in the leftmost column
-        lc.setChar(0,3,'-',false);  }
-    else {
-        //print a blank in the sign column
-        lc.setChar(0,3,' ',false);
-    }
-    //Now print the number digit by digit
-    lc.setDigit(0,2,(byte)hundreds,false);
-    lc.setDigit(0,2,(byte)hundreds,false);
-    lc.setDigit(0,1,(byte)tens,false);
-    lc.setDigit(0,0,(byte)ones,false);
-}
 void vddpub() {
   vdd = system_get_vdd33()/1000.0*1.063; //*1.051;
   dtostrf(vdd, 4, 2, buffer);
   client.publish("/esp/voltage", buffer);
-  lc.setDigit(0,6,1,false);
-  lc.setDigit(0,5,4,false);
-  lc.setDigit(0,4,2,true);
-  lc.setDigit(0,3,6,false);
-  lc.setChar(0,2,'O',false);
-  lc.setChar(0,1,'C',false);
-  //lc.setChar(0,0,'O',false);
-
-//  printNumber(vdd);
-}
-
-/*
-  This method will scroll all the hexa-decimal
- numbers and letters on the display. You will need at least
- four 7-Segment digits. otherwise it won't really look that good.
- */
-void scrollDigits() {
-  for(int i=0;i<13;i++) {
-    lc.setDigit(0,3,i,false);
-    lc.setDigit(0,2,i+1,false);
-    lc.setDigit(0,1,i+2,false);
-    lc.setDigit(0,0,i+3,false);
-    delay(delaytime);
-  }
-  lc.clearDisplay(0);
-  delay(delaytime);
 }
 
 
@@ -210,19 +98,10 @@ void loop() {
   currentTime = millis();                           // считываем время, прошедшее с момента запуска программы
   if(currentTime >= (loopTime + 2000) ){              // сравниваем текущий таймер с переменной loopTime + 1 секунда
   vddpub();
-  // uint16_t lux = lightMeter.readLightLevel();
-  // Serial.print("Light: ");
-  // Serial.print(lux);
-  // Serial.println(" lx");
-
-
   loopTime = currentTime;                         // в loopTime записываем новое значение
   }
 
 ArduinoOTA.handle();
 client.loop();
-
-//writeArduinoOn7Segment();
-//  scrollDigits();
 
 }
