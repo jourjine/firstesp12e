@@ -46,8 +46,6 @@ float vdd;                                  // напряжение питани
 
 long currentTime, loopTime;                  // переменные для временной задержки
 
-bool sensordebug = false;                     // включаем консаольный дебаг с датчкиков
-
 extern "C" {                                  // необходимо для переключения АДС для измерения питания ESP
 #include "user_interface.h"
 }
