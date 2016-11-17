@@ -43,6 +43,22 @@ uint16_t lux;                               // bh1750
 float bmp180t, bmp180p, bmp180a, bmp180ra;  // bmp180180
 float htut, htuh;                           // htu21d
 
+double my_double;
+float my_float;
+int my_int;
+bool my_bool;
+
+const char* subcribe_topic[] ={"/esp/multisensor/ssr",
+                              "/esp/multisensor/buzzer",
+                              "/esp/multisensor/redled",
+                              "/esp/multisensor/greenled",
+                              "/esp/multisensor/blueled",
+                              "/esp/multisensor/float"
+                            };
+
+
+
+
 float vdd;                                  // напряжение питания ESP
 
 long currentTime, loopTime;                  // переменные для временной задержки
@@ -73,7 +89,7 @@ WiFiClient espClient;               // для MQTT
 Обработка подписанных топиков MQTT
 */
   void callback(char* topic, byte* payload, unsigned int length) {
-if (sensordebug) {
+
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
@@ -81,20 +97,47 @@ if (sensordebug) {
     Serial.print((char)payload[i]);
   }
   Serial.println();
-}
-    int x = 0;
-  for (int i = 0; i < length; i++) {
-     data[x] = payload[i];
-     x++;
-  }
-  data[x] = '\0';
+
+int i = 0;
+    for (i = 0; i < length; i++) {
+     data[i] = payload[i];
+     }
+     data[i] = '\0';
+     const char *p_payload = data;
+
+     char *end;
+    // start = "hello";
+     my_double = strtod(p_payload, &end);
+     if(end == p_payload) {
+      Serial.println("Conversion error");
+     }
+    //  my_double = strtod(p_payload, NULL);
+      my_int = atoi(p_payload);
+      my_float = atof(p_payload);
+      if (my_int < 0 || my_int > 0) my_bool = true;
+      else my_bool = false;
+
+      Serial.println("Payload is: ");
+      Serial.print("String:  ");
+      Serial.println(p_payload);
+      Serial.print("Double:  ");
+      Serial.println(my_double,10);
+      Serial.print("Float:   ");
+      Serial.println(my_float,10);
+      Serial.print("Int:     ");
+      Serial.println(my_int);
+      Serial.print("Boolean: ");
+      Serial.println(my_bool);
 
   if (strcmp(topic, "/esp/multisensor/redled") == 0 ) {
-      if ((int)payload[0] == ON) digitalWrite(RLED, HIGH);
+  //  int int_payload = atoi(p_payload);
+
+
+      if (my_bool) digitalWrite(RLED, HIGH);
       else digitalWrite(RLED, LOW);
  }
   if (strcmp(topic, "/esp/multisensor/greenled") == 0 ) {
-      if ((int)payload[0] == ON) digitalWrite(GLED, HIGH);
+      if (my_bool) digitalWrite(GLED, HIGH);
       else digitalWrite(GLED, LOW);
  }
   if (strcmp(topic, "/esp/multisensor/blueled") == 0 ) {
@@ -109,6 +152,12 @@ if (sensordebug) {
      if ((int)payload[0] == ON) digitalWrite(BUZZER, HIGH);
      else digitalWrite(BUZZER, LOW);
  }
+ if (strcmp(topic, "/esp/multisensor/myfloat") == 0 ) {
+
+    Serial.print("my_float: ");
+      Serial.println(my_float);
+}
+
     memset(data,0,sizeof(data));
     // handle message arrived
   }
@@ -116,6 +165,14 @@ if (sensordebug) {
 PubSubClient mqttclient(espClient);
 //mqtt_server, 1883, callback,
 
+void broker_subcribe() {
+   for (int i = 0; i < (sizeof(subcribe_topic)/sizeof(int)); i++){
+  mqttclient.subscribe(subcribe_topic[i]);
+  mqttclient.loop();
+  Serial.print("subscribe: ");
+  Serial.println(subcribe_topic[i]);
+  }
+}
   void bme280sensorsetup() {
     //***Driver settings********************************//
   	//commInterface can be I2C_MODE or SPI_MODE
@@ -273,6 +330,7 @@ boolean reconnect() {
     Serial.println("Attempting MQTT connection...");   // Attempt to connect
       int ret = mqttclient.connect(MQTTCLIENTID, mqtt_username, mqtt_password);
             switch (ret) {
+            case 1: Serial.println("Normal Connection"); break;
     	      case 2: Serial.println("Wrong protocol"); break;
     	      case 3: Serial.println("ID rejected"); break;
     	      case 4: Serial.println("Server unavailable");  break;
@@ -283,17 +341,14 @@ boolean reconnect() {
     	               Serial.println(ret);
     	               break;
             }
-            if (sensordebug) {
-            Serial.print("Current MQTT state is ");
-            Serial.println(mqttclient.state());
-            Serial.print("var ret is ");
-            Serial.println(ret);
-            }
-            mqttclient.subscribe("/esp/multisensor/redled");
-            mqttclient.subscribe("/esp/multisensor/greenled");
-            mqttclient.subscribe("/esp/multisensor/blueled");
-            mqttclient.subscribe("/esp/multisensor/ssr");
-            mqttclient.subscribe("/esp/multisensor/buzzer");
+            // if (sensordebug) {
+            // Serial.print("Current MQTT state is ");
+            // Serial.println(mqttclient.state());
+            // Serial.print("var ret is ");
+            // Serial.println(ret);
+            // }
+           broker_subcribe();
+
 return mqttclient.connected();
 }
 
@@ -309,7 +364,7 @@ void setup() {
   pinMode(BUZZER, OUTPUT);
   digitalWrite(BUZZER, LOW);
 
-  Serial.begin(115200);
+  Serial.begin(74880);
 
   wifiManager.autoConnect("ESP-wifi", "12345678");
 
@@ -574,7 +629,9 @@ void wwwloop() {
 void loop() {
 
   currentTime = millis();                           // считываем время, прошедшее с момента запуска программы
-  if(currentTime >= (loopTime + 2000) ){              // сравниваем текущий таймер с переменной loopTime + 1 секунда
+  if(currentTime >= (loopTime + 2000) ){
+  //  Serial.print("Current MQTT state is ");
+  //  Serial.println(mqttclient.state());            // сравниваем текущий таймер с переменной loopTime + 1 секунда
   vddpub();
   bme280loop();
   bh1750loop();
