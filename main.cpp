@@ -26,7 +26,7 @@
 #define SPICS 3
 #define SCL 4
 #define SDA 5
-
+#define ON 49
 
 int connecttry = 0;
 
@@ -36,6 +36,7 @@ char dpString[6];                       // для www
 char humidityString[6];                 // для www
 char pressureString[7];                 // для www
 char pressureInchString[6];             // для www
+char data[40];                          // mqtt буффер
 
 float bmet, bmep, bmea, bmeh, bmepraw;      // bme280
 uint16_t lux;                               // bh1750
@@ -45,6 +46,7 @@ float htut, htuh;                           // htu21d
 float vdd;                                  // напряжение питания ESP
 
 long currentTime, loopTime;                  // переменные для временной задержки
+
 
 extern "C" {                                  // необходимо для переключения АДС для измерения питания ESP
 #include "user_interface.h"
@@ -58,28 +60,12 @@ unsigned long delaytime=250;                // Задержка для 7219
 long lastReconnectAttempt = 0;
 
 
-/*
- Now we need a LedControl to work with.
- ***** These pin numbers will probably not work with your hardware *****
- pin 12 is connected to the DataIn
- pin 11 is connected to the CLK
- pin 10 is connected to LOAD
- We have only a single MAX72XX.
- */
- //clk: 2
-//data:1
-//cs:3
-//LedControl lc=LedControl(SPIDATAIN,SPICLK,SPICS,2);
-
 BME280 bme280;                  // датчик BME280
 BH1750 lightMeter(0x23);        // датчик BH1750
 HTU21D htu21;                   // датчик HTU21D
 Adafruit_BMP085 bmp180;         // датчик BMP180
 WiFiManager wifiManager;        // инициализация WiFi mAnager
 WiFiServer wwwserver(80);       // инициализация Web Server
-//IPAddress mqttserver(192, 168, 1, 131);// инициализация для MQTT
-
-
 WiFiClient espClient;               // для MQTT
 
 
@@ -87,11 +73,48 @@ WiFiClient espClient;               // для MQTT
 Обработка подписанных топиков MQTT
 */
   void callback(char* topic, byte* payload, unsigned int length) {
+if (sensordebug) {
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+}
+    int x = 0;
+  for (int i = 0; i < length; i++) {
+     data[x] = payload[i];
+     x++;
+  }
+  data[x] = '\0';
+
+  if (strcmp(topic, "/esp/multisensor/redled") == 0 ) {
+      if ((int)payload[0] == ON) digitalWrite(RLED, HIGH);
+      else digitalWrite(RLED, LOW);
+ }
+  if (strcmp(topic, "/esp/multisensor/greenled") == 0 ) {
+      if ((int)payload[0] == ON) digitalWrite(GLED, HIGH);
+      else digitalWrite(GLED, LOW);
+ }
+  if (strcmp(topic, "/esp/multisensor/blueled") == 0 ) {
+      if ((int)payload[0] == ON) digitalWrite(BLED, HIGH);
+      else digitalWrite(BLED, LOW);
+ }
+  if (strcmp(topic, "/esp/multisensor/ssr") == 0 ) {
+      if ((int)payload[0] == ON) digitalWrite(SSR, HIGH);
+      else digitalWrite(SSR, LOW);
+ }
+  if (strcmp(topic, "/esp/multisensor/buzzer") == 0 ) {
+     if ((int)payload[0] == ON) digitalWrite(BUZZER, HIGH);
+     else digitalWrite(BUZZER, LOW);
+ }
+    memset(data,0,sizeof(data));
     // handle message arrived
   }
 
-PubSubClient mqttclient(mqtt_server, 1883, callback, espClient);
-
+PubSubClient mqttclient(espClient);
+//mqtt_server, 1883, callback,
 
   void bme280sensorsetup() {
     //***Driver settings********************************//
@@ -260,69 +283,19 @@ boolean reconnect() {
     	               Serial.println(ret);
     	               break;
             }
+            if (sensordebug) {
             Serial.print("Current MQTT state is ");
-
             Serial.println(mqttclient.state());
             Serial.print("var ret is ");
             Serial.println(ret);
+            }
+            mqttclient.subscribe("/esp/multisensor/redled");
+            mqttclient.subscribe("/esp/multisensor/greenled");
+            mqttclient.subscribe("/esp/multisensor/blueled");
+            mqttclient.subscribe("/esp/multisensor/ssr");
+            mqttclient.subscribe("/esp/multisensor/buzzer");
 return mqttclient.connected();
 }
-
-
-void reconnectold2() {
-
-  while (!mqttclient.connected()) {
-    connecttry++;
-    if (connecttry <= 10) {
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
-    int ret;
-    while ((ret = mqttclient.connect(MQTTCLIENTID)) != 0) { // connect will return 0 for connected
-    	    switch (ret) {
-    	      case 1: Serial.println("Wrong protocol"); break;
-    	      case 2: Serial.println("ID rejected"); break;
-    	      case 3: Serial.println("Server unavailable"); break;
-    	      case 4: Serial.println("Bad user/password"); break;
-    	      case 5: Serial.println("Not authenticated"); break;
-    	      case 6: Serial.println("Failed to subscribe"); break;
-    	      default: Serial.print("Couldn't connect to server, code: ");
-    	        Serial.println(ret);
-    	        break;
-            }
-            delay(5000);
-          }
-        } else {
-          Serial.print("Couldn't connect to server, mqqt stopped");
-          break;
-            }
-       }
-    }
-
-
-
-  void reconnectold() {
-    // Loop until we're reconnected
-
-    while (!mqttclient.connected()) {
-      Serial.print("Attempting MQTT connection...");
-      // Attempt to connect
-      if (mqttclient.connect("ESP8266Client")) {
-        Serial.println("connected");
-        // Once connected, publish an announcement...
-        mqttclient.publish("outTopic", "hello world");
-        // ... and resubscribe
-        mqttclient.subscribe("inTopic");
-      }
-      else {
-        Serial.print("failed, rc=");
-        Serial.print(mqttclient.state());
-        Serial.println(" try again in 5 seconds");
-        // Wait 5 seconds before retrying
-        delay(5000);
-      }
-    }
-  }
-
 
 void setup() {
   pinMode(RLED, OUTPUT);
@@ -335,9 +308,6 @@ void setup() {
   digitalWrite(SSR, LOW);
   pinMode(BUZZER, OUTPUT);
   digitalWrite(BUZZER, LOW);
-
-
-
 
   Serial.begin(115200);
 
