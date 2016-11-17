@@ -53,7 +53,8 @@ const char* subcribe_topic[] ={"/esp/multisensor/ssr",
                               "/esp/multisensor/redled",
                               "/esp/multisensor/greenled",
                               "/esp/multisensor/blueled",
-                              "/esp/multisensor/float"
+                              "/esp/multisensor/myfloat",
+                              "/esp/multisensor/mytext"
                             };
 
 
@@ -110,16 +111,13 @@ int i = 0;
      my_double = strtod(p_payload, &end);
      if(end == p_payload) {
       Serial.println("Conversion error");
-     }
+    } else {
     //  my_double = strtod(p_payload, NULL);
+    Serial.println("start Conversion");
       my_int = atoi(p_payload);
       my_float = atof(p_payload);
       if (my_int < 0 || my_int > 0) my_bool = true;
       else my_bool = false;
-
-      Serial.println("Payload is: ");
-      Serial.print("String:  ");
-      Serial.println(p_payload);
       Serial.print("Double:  ");
       Serial.println(my_double,10);
       Serial.print("Float:   ");
@@ -128,6 +126,9 @@ int i = 0;
       Serial.println(my_int);
       Serial.print("Boolean: ");
       Serial.println(my_bool);
+}
+
+
 
   if (strcmp(topic, "/esp/multisensor/redled") == 0 ) {
   //  int int_payload = atoi(p_payload);
@@ -156,6 +157,12 @@ int i = 0;
 
     Serial.print("my_float: ");
       Serial.println(my_float);
+}
+
+if (strcmp(topic, "/esp/multisensor/mytext") == 0 ) {
+
+   Serial.print("my_text: ");
+     Serial.println(p_payload);
 }
 
     memset(data,0,sizeof(data));
@@ -347,7 +354,7 @@ boolean reconnect() {
             // Serial.print("var ret is ");
             // Serial.println(ret);
             // }
-           broker_subcribe();
+
 
 return mqttclient.connected();
 }
@@ -650,6 +657,7 @@ if (!mqttclient.connected()) {
       // Attempt to reconnect
       if (reconnect()) {
         lastReconnectAttempt = 0;
+        broker_subcribe();
       }
     }
   } else {
